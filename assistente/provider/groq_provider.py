@@ -1,0 +1,51 @@
+"""Fornitore Groq: API in stile "chat completions", la più diffusa."""
+
+import groq
+
+from .. import config
+from .base import Risposta, traduci_errore
+
+
+class ProviderGroq:
+    NOME_CHIAVE = "GROQ_API_KEY"
+
+    def __init__(self) -> None:
+        # Senza argomenti, il client legge la chiave da GROQ_API_KEY.
+        self.client = groq.Groq()
+
+    def chiedi(self, messaggi: list, su_testo) -> Risposta:
+        """Invia l'intera conversazione; chiama `su_testo` a ogni frammento."""
+        # Qui il system prompt è il primo messaggio della lista.
+        richiesta = [{"role": "system", "content": config.SYSTEM_PROMPT}, *messaggi]
+
+        parti: list[str] = []
+        motivo = None
+        uso = None
+        modello = config.MODELLO
+        try:
+            stream = self.client.chat.completions.create(
+                model=config.MODELLO, messages=richiesta, stream=True
+            )
+            for pezzo in stream:
+                modello = pezzo.model or modello
+                if pezzo.choices:
+                    scelta = pezzo.choices[0]
+                    if scelta.delta.content:
+                        parti.append(scelta.delta.content)
+                        su_testo(scelta.delta.content)
+                    motivo = scelta.finish_reason or motivo
+                # Il conteggio dei token arriva solo nell'ultimo pezzo.
+                if pezzo.x_groq and pezzo.x_groq.usage:
+                    uso = pezzo.x_groq.usage
+                elif pezzo.usage:
+                    uso = pezzo.usage
+        except groq.APIError as errore:
+            raise traduci_errore(groq, errore, self.NOME_CHIAVE) from errore
+
+        return Risposta(
+            messaggio={"role": "assistant", "content": "".join(parti)},
+            modello=modello,
+            token_ingresso=uso.prompt_tokens if uso else 0,
+            token_uscita=uso.completion_tokens if uso else 0,
+            esito="troncata" if motivo == "length" else "fine",
+        )
