@@ -9,9 +9,10 @@ from .base import Risposta, traduci_errore
 class ProviderGroq:
     NOME_CHIAVE = "GROQ_API_KEY"
 
-    def __init__(self) -> None:
+    def __init__(self, client=None) -> None:
         # Senza argomenti, il client legge la chiave da GROQ_API_KEY.
-        self.client = groq.Groq()
+        # Nei test passiamo un client finto al posto di quello vero.
+        self.client = client or groq.Groq()
 
     def chiedi(self, messaggi: list, su_testo) -> Risposta:
         """Invia l'intera conversazione; chiama `su_testo` a ogni frammento."""
@@ -42,8 +43,10 @@ class ProviderGroq:
         except groq.APIError as errore:
             raise traduci_errore(groq, errore, self.NOME_CHIAVE) from errore
 
+        testo = "".join(parti)
         return Risposta(
-            messaggio={"role": "assistant", "content": "".join(parti)},
+            messaggio={"role": "assistant", "content": testo},
+            testo=testo,
             modello=modello,
             token_ingresso=uso.prompt_tokens if uso else 0,
             token_uscita=uso.completion_tokens if uso else 0,

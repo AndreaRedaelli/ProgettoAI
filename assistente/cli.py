@@ -3,9 +3,14 @@
 import sys
 
 from . import config
-from .provider import ErroreAI, costo_in_dollari, crea_provider
+from .provider import ErroreAI, crea_provider
+from .sessione import Sessione
 
 AIUTO = "Comandi: /costo  /nuovo  /esci"
+
+
+def stampa_frammento(testo: str) -> None:
+    print(testo, end="", flush=True)
 
 
 def main() -> None:
@@ -13,16 +18,10 @@ def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8")
 
     try:
-        provider = crea_provider()
+        sessione = Sessione(crea_provider())
     except ErroreAI as errore:
         print(errore)
         return
-
-    # La cronologia vive qui, nel nostro programma: è questa la "memoria".
-    messaggi: list = []
-    token_ingresso = 0
-    token_uscita = 0
-    spesa = 0.0
 
     print(f"Assistente pronto ({config.PROVIDER}, modello: {config.MODELLO}). {AIUTO}")
 
@@ -38,49 +37,28 @@ def main() -> None:
         if domanda == "/esci":
             break
         if domanda == "/nuovo":
-            messaggi.clear()
+            sessione.azzera()
             print("Conversazione azzerata.")
             continue
         if domanda == "/costo":
-            print(
-                f"Token in ingresso: {token_ingresso} · in uscita: {token_uscita} · "
-                f"spesa stimata: ${spesa:.4f}"
-            )
+            print(sessione.riepilogo())
             continue
         if domanda.startswith("/"):
             print(AIUTO)
             continue
 
-        messaggi.append({"role": "user", "content": domanda})
         print("\nAI> ", end="", flush=True)
-
         try:
-            risposta = provider.chiedi(
-                messaggi, lambda testo: print(testo, end="", flush=True)
-            )
+            risposta = sessione.invia(domanda, stampa_frammento)
         except KeyboardInterrupt:
             print("\n[Interrotto]")
-            messaggi.pop()
             continue
         except ErroreAI as errore:
             print(f"\n{errore}")
-            messaggi.pop()
             continue
         print()
 
-        # Il costo si paga anche se la risposta viene rifiutata o troncata.
-        token_ingresso += risposta.token_ingresso
-        token_uscita += risposta.token_uscita
-        spesa += costo_in_dollari(
-            risposta.modello, risposta.token_ingresso, risposta.token_uscita
-        )
-
         if risposta.esito == "rifiuto":
             print("[Il modello ha rifiutato la richiesta: non la tengo in cronologia.]")
-            messaggi.pop()
-            continue
-        if risposta.esito == "troncata":
+        elif risposta.esito == "troncata":
             print("[Risposta troncata: raggiunto il limite di token.]")
-
-        # Alla prossima domanda il modello riceverà anche questa risposta.
-        messaggi.append(risposta.messaggio)

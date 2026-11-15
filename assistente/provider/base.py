@@ -18,6 +18,8 @@ class ErroreAI(Exception):
 class Risposta:
     # Messaggio da aggiungere alla cronologia, già nel formato del fornitore.
     messaggio: dict
+    # Solo il testo della risposta, uguale per tutti i fornitori.
+    testo: str
     modello: str
     token_ingresso: int
     token_uscita: int

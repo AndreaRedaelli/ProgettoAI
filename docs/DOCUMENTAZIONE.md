@@ -12,7 +12,7 @@ la propria sezione qui sotto.
 | Branch | Contenuto | Stato |
 |---|---|---|
 | `main` | Base: chat con due fornitori, più questo documento | presente |
-| `tappa-1-chat` | Tappa 1 completata, con i test | da fare |
+| `tappa-1-chat` | Tappa 1 completata, con i test | presente |
 | `tappa-2-sicurezza` | Controlli sulle richieste e filtro di ambito | da fare |
 | `tappa-3-agente` | Strumenti e ciclo agentico | da fare |
 | `tappa-4-plugin` | Plugin e MCP | da fare |
@@ -76,6 +76,7 @@ assistente/
 ├── __main__.py              avvio:  python -m assistente
 ├── cli.py                   interfaccia a riga di comando, cronologia
 ├── config.py                impostazioni lette da .env
+├── sessione.py              cronologia e contatori (dalla tappa 1)
 └── provider/
     ├── __init__.py          sceglie il fornitore (AI_PROVIDER)
     ├── base.py              forma comune: Risposta, ErroreAI
@@ -139,7 +140,85 @@ Le chiavi stanno solo in `.env`, che è escluso da git.
 
 ## Tappa 1 — Chat via API
 
-Branch `tappa-1-chat`. *Da completare con i test.*
+Branch `tappa-1-chat`.
+
+### Cosa aggiunge rispetto a `main`
+
+- `assistente/sessione.py`: la conversazione diventa una classe a sé.
+- `tests/`: i test automatici.
+- I fornitori accettano un client già pronto e la `Risposta` ha anche il campo `testo`.
+
+### La classe `Sessione`
+
+Su `main` cronologia e contatori stavano dentro il ciclo di `cli.py`, mescolati
+a `input()` e `print()`. Erano impossibili da provare senza una tastiera.
+`Sessione` contiene solo la logica:
+
+| Metodo | Cosa fa |
+|---|---|
+| `invia(domanda, su_testo)` | Aggiunge la domanda, chiama il fornitore, aggiorna i contatori, aggiunge la risposta |
+| `azzera()` | Svuota la cronologia |
+| `riepilogo()` | Testo con token e spesa |
+
+`cli.py` ora fa solo due cose: leggere dalla tastiera e stampare. La stessa
+`Sessione` servirà la finestra grafica della tappa 6.
+
+Due regole che `invia` garantisce:
+
+- se la richiesta fallisce (errore o `Ctrl+C`), la domanda viene tolta dalla
+  cronologia, altrimenti resterebbero due messaggi `user` di fila;
+- se il modello rifiuta, la domanda viene tolta ma i token si contano lo
+  stesso, perché sono stati consumati.
+
+### Come si testa codice che chiama un'AI
+
+Un'AI vera nei test sarebbe lenta, costosa e darebbe ogni volta risposte
+diverse. La soluzione è sostituirla con un oggetto finto che risponde ciò che
+decidiamo noi. Lo facciamo a due livelli:
+
+| Cosa proviamo | Cosa sostituiamo | File |
+|---|---|---|
+| La logica della conversazione | L'intero fornitore, con `ProviderFinto` | `tests/test_sessione.py` |
+| La traduzione delle API | Il client dell'SDK, con un oggetto che ne imita i pezzi usati | `tests/test_provider.py` |
+
+Perché questo funzioni il codice deve **ricevere** le sue dipendenze invece
+di crearsele: `Sessione(provider)` e `ProviderGroq(client)`. Si chiama
+*dependency injection* ed è il motivo per cui i costruttori hanno quei parametri.
+
+Per eseguire i test:
+
+```powershell
+.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+```
+
+```powershell
+.venv\Scripts\python.exe -m pytest
+```
+
+Cosa i test **non** dicono: se il modello vero risponde bene. Quello si
+verifica a mano, e dalla tappa 2 con le evals.
+
+### Ordine di lettura consigliato
+
+1. `assistente/config.py` — le impostazioni.
+2. `assistente/provider/base.py` — la forma comune di risposte ed errori.
+3. `assistente/provider/groq_provider.py`, poi `anthropic_provider.py` — confrontali.
+4. `assistente/sessione.py` — la memoria della conversazione.
+5. `assistente/cli.py` — l'interfaccia.
+6. `tests/test_sessione.py` — ogni test è una regola del comportamento, scritta come esempio.
+
+### Esperimenti
+
+- In `sessione.py` commenta la riga `self.messaggi.append(risposta.messaggio)`
+  e chiedi al modello di ricordare qualcosa: quale test fallisce?
+- Fai tre domande e guarda `/costo` dopo ognuna: i token in ingresso crescono
+  più in fretta di quelli in uscita. Perché?
+- Stacca la rete e fai una domanda, poi guarda `/costo` e fai `/nuovo`.
+
+### Stato della verifica
+
+- Groq: provato con il modello vero (streaming, cronologia, conteggio dei token).
+- Anthropic: coperto solo dai test con il client finto; non provato con una chiave vera.
 
 ## Tappa 2 — Controlli di sicurezza
 

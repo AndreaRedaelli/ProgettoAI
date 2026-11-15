@@ -15,9 +15,10 @@ ESITI = {"max_tokens": "troncata", "refusal": "rifiuto"}
 class ProviderAnthropic:
     NOME_CHIAVE = "ANTHROPIC_API_KEY"
 
-    def __init__(self) -> None:
+    def __init__(self, client=None) -> None:
         # Senza argomenti, il client legge la chiave da ANTHROPIC_API_KEY.
-        self.client = anthropic.Anthropic()
+        # Nei test passiamo un client finto al posto di quello vero.
+        self.client = client or anthropic.Anthropic()
 
     def chiedi(self, messaggi: list, su_testo) -> Risposta:
         """Invia l'intera conversazione; chiama `su_testo` a ogni frammento."""
@@ -45,6 +46,7 @@ class ProviderAnthropic:
             # Teniamo TUTTI i blocchi della risposta, non solo il testo:
             # il modello li rivuole indietro così come li ha prodotti.
             messaggio={"role": "assistant", "content": finale.content},
+            testo="".join(b.text for b in finale.content if b.type == "text"),
             modello=finale.model,
             token_ingresso=finale.usage.input_tokens,
             token_uscita=finale.usage.output_tokens,

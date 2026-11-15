@@ -52,7 +52,7 @@ entrambi i fornitori.**
 
 ---
 
-## 🔄 Tappa 1 — Chat via API
+## ✅ Tappa 1 — Chat via API
 
 **Cosa costruiamo:** fai una domanda dal terminale e ricevi la risposta in
 streaming, con la cronologia della conversazione.
@@ -68,12 +68,12 @@ streaming, con la cronologia della conversazione.
 - Come si testa codice che chiama un'AI senza chiamarla davvero.
 
 **Fatto quando**
-- [ ] `python -m assistente` apre la chat e risponde in streaming con Groq
-- [ ] la seconda domanda può riferirsi alla prima (la cronologia funziona)
-- [ ] con `AI_PROVIDER=anthropic` la stessa chat funziona senza altre modifiche
-- [ ] `/costo` mostra token e spesa stimata della sessione
-- [ ] chiave mancante, chiave errata o fornitore sconosciuto danno un messaggio chiaro
-- [ ] i test passano
+- [x] `python -m assistente` apre la chat e risponde in streaming con Groq
+- [x] la seconda domanda può riferirsi alla prima (la cronologia funziona)
+- [ ] con `AI_PROVIDER=anthropic` la stessa chat funziona senza altre modifiche (coperto dai test, da provare con una chiave vera)
+- [x] `/costo` mostra token e spesa stimata della sessione
+- [x] chiave mancante, chiave errata o fornitore sconosciuto danno un messaggio chiaro
+- [x] i test passano
 
 **Esperimenti per capire**
 - Commenta la riga che aggiunge la risposta alla cronologia: cosa succede?
