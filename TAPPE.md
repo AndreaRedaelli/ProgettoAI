@@ -134,7 +134,7 @@ risultato → ripete.
 
 ---
 
-## ⬜ Tappa 4 — Plugin
+## ✅ Tappa 4 — Plugin
 
 **Cosa costruiamo:** gli strumenti diventano estendibili senza toccare il nucleo.
 
@@ -146,10 +146,10 @@ risultato → ripete.
 - Fiducia: un plugin è codice altrui, quindi permessi e controlli per plugin.
 
 **Fatto quando**
-- [ ] aggiungere uno strumento non richiede modifiche al ciclo dell'agente
-- [ ] l'assistente usa strumenti di un server MCP esterno
-- [ ] un nostro server MCP funziona anche da altri client
-- [ ] i test passano
+- [x] aggiungere uno strumento non richiede modifiche al ciclo dell'agente
+- [x] l'assistente usa strumenti di un server MCP esterno
+- [ ] un nostro server MCP funziona anche da altri client (è un server standard, ma provato solo con il nostro client)
+- [x] i test passano
 
 ---
 

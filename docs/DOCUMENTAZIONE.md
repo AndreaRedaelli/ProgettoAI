@@ -15,7 +15,7 @@ la propria sezione qui sotto.
 | `tappa-1-chat` | Tappa 1 completata, con i test | presente |
 | `tappa-2-sicurezza` | Controlli sulle richieste e filtro di ambito | presente |
 | `tappa-3-agente` | Strumenti e ciclo agentico | presente |
-| `tappa-4-plugin` | Plugin e MCP | da fare |
+| `tappa-4-plugin` | Plugin e MCP | presente |
 | `tappa-5-loop` | Loop autonomo | da fare |
 | `tappa-6-interfaccia` | Interfaccia grafica | da fare |
 
@@ -578,7 +578,170 @@ Anthropic è coperto solo dai test con il client finto.
 
 ## Tappa 4 — Plugin
 
-Branch `tappa-4-plugin`. *Da fare.*
+Branch `tappa-4-plugin`.
+
+### Cosa aggiunge rispetto alla tappa 3
+
+```
+assistente/strumenti/
+├── plugin.py        carica gli strumenti dai file della cartella plugin/
+└── mcp_client.py    client MCP scritto a mano
+plugin/
+└── testo.py         plugin di esempio: conta_parole, inverti_testo
+server_mcp/
+└── appunti.py       un nostro server MCP, con la libreria ufficiale
+mcp_server.json      elenco dei server MCP da collegare
+```
+
+Il ciclo agentico della tappa 3 **non è stato toccato**: gli strumenti nuovi
+entrano nello stesso `Registro`, e la sessione non sa da dove arrivano.
+
+### Due modi di estendere l'agente
+
+| | Plugin | Server MCP |
+|---|---|---|
+| Che cos'è | Un file Python nella cartella `plugin/` | Un processo separato |
+| Dove gira | Dentro il nostro programma | Fuori, in un altro processo |
+| Linguaggio | Python | Qualunque |
+| Chi lo può usare | Solo questo assistente | Qualunque client MCP |
+| Formato | Nostro (`STRUMENTI = [...]`) | Standard |
+
+### Plugin
+
+Un plugin è un file che definisce una lista `STRUMENTI`. Guarda
+`plugin/testo.py`: due funzioni e la loro descrizione. Al prossimo avvio gli
+strumenti compaiono in `/strumenti`.
+
+`carica_plugin` applica tre regole:
+
+- **Un plugin rotto non ferma gli altri.** L'errore diventa una nota
+  mostrata all'avvio.
+- **Un plugin non può sostituire uno strumento esistente.** Altrimenti
+  potrebbe rimpiazzare `leggi_file` con una versione senza confinamento. Gli
+  strumenti predefiniti vengono registrati per primi.
+- **Di un plugin non fidato non ci si fida.** Se il suo nome non è in
+  `PLUGIN_FIDATI`, i suoi strumenti chiedono conferma a ogni uso, qualunque
+  permesso si siano dati da soli.
+
+Un limite da avere chiaro: caricare un plugin significa **eseguire il suo
+codice**. La conferma protegge dalle chiamate agli strumenti, non da ciò che
+il file fa mentre viene caricato. Un plugin va letto prima di installarlo.
+
+### MCP
+
+MCP (Model Context Protocol) è lo standard con cui un programma espone
+strumenti a un'AI. Il server è un processo separato; le due parti si scambiano
+messaggi JSON-RPC, uno per riga, sullo standard input e output.
+
+Bastano quattro messaggi, tutti in `mcp_client.py`:
+
+| Messaggio | Significato |
+|---|---|
+| `initialize` | Ci presentiamo e concordiamo la versione del protocollo |
+| `notifications/initialized` | Confermiamo che siamo pronti |
+| `tools/list` | Chiediamo l'elenco degli strumenti |
+| `tools/call` | Ne eseguiamo uno |
+
+`tools/list` restituisce per ogni strumento nome, descrizione e schema dei
+parametri: **le stesse tre cose** di uno `Strumento` della tappa 3. MCP non
+aggiunge un concetto nuovo: sposta gli strumenti in un altro processo e
+standardizza il modo di descriverli.
+
+Abbiamo scritto le due metà in due modi diversi, apposta:
+
+- il **client** a mano (`mcp_client.py`), per vedere il protocollo;
+- il **server** con la libreria ufficiale `mcp` (`server_mcp/appunti.py`),
+  dove si scrivono solo le funzioni decorate con `@server.tool()`.
+
+Il fatto che si parlino dimostra entrambe le cose: il nostro client rispetta
+lo standard, e il nostro server è utilizzabile da qualunque altro client MCP.
+
+I server da collegare stanno in `mcp_server.json`:
+
+```json
+{
+  "appunti": {
+    "comando": ["python", "-m", "server_mcp.appunti"],
+    "fidato": true
+  }
+}
+```
+
+`"python"` indica l'interprete che sta eseguendo l'assistente. Gli strumenti
+prendono il nome del server come prefisso (`appunti__aggiungi_appunto`): due
+server non possono scontrarsi, e si vede sempre da dove arriva uno strumento.
+Senza `"fidato": true` chiedono conferma a ogni uso.
+
+### Fiducia
+
+| Origine | Permesso predefinito | Come diventa libero |
+|---|---|---|
+| Strumenti predefiniti | deciso da noi | — |
+| Plugin | conferma | nome in `PLUGIN_FIDATI` |
+| Server MCP | conferma | `"fidato": true` in `mcp_server.json` |
+
+Ciò che un'estensione restituisce passa comunque da
+`Guardia.filtra_risultato`, come ogni altro risultato: un server MCP può
+restituire testo scritto per ingannare il modello.
+
+### Le estensioni allargano l'ambito
+
+Il filtro della tappa 2 bloccava "salva tra gli appunti: riunione lunedì",
+perché gli appunti non sono programmazione. Ma chi installa uno strumento per
+gli appunti vuole poterlo usare. Ora `crea_guardia` riceve gli strumenti
+disponibili e li aggiunge alla descrizione dell'ambito data al giudice.
+
+Conseguenza da tenere a mente: **installare un'estensione allarga ciò che
+l'assistente accetta di fare.** È una decisione di sicurezza, non solo una
+comodità.
+
+### Impostazioni aggiunte
+
+| Variabile | Significato | Predefinito |
+|---|---|---|
+| `CARTELLA_PLUGIN` | Cartella dei plugin | `plugin` |
+| `PLUGIN_FIDATI` | Plugin che non chiedono conferma, separati da virgola | nessuno |
+| `FILE_MCP` | Elenco dei server MCP | `mcp_server.json` |
+
+### Ordine di lettura consigliato
+
+1. `plugin/testo.py` — com'è fatto un plugin.
+2. `strumenti/plugin.py` — come viene caricato, e le tre regole.
+3. `strumenti/mcp_client.py` — il protocollo, messaggio per messaggio.
+4. `server_mcp/appunti.py` — lo stesso protocollo visto dal server, con la libreria.
+5. `tests/test_estensioni.py` — contiene anche un server MCP di trenta righe
+   scritto senza librerie.
+
+### Esperimenti
+
+- Scrivi un plugin `plugin/dadi.py` con uno strumento `lancia_dado` e
+  chiedi all'assistente di lanciarne due.
+- Aggiungi `PLUGIN_FIDATI=testo` in `.env` e osserva che `conta_parole` non
+  chiede più conferma.
+- Togli `"fidato": true` da `mcp_server.json` e salva un appunto.
+- Aggiungi uno strumento `elimina_appunto` al server: serve toccare il
+  client o il ciclo agentico?
+
+### Stato della verifica
+
+- Il client scritto a mano elenca e chiama gli strumenti del server basato
+  sulla libreria ufficiale (anche in un test automatico).
+- Con il modello vero di Groq: un appunto salvato tramite MCP e uno strumento
+  di un plugin usato dopo la conferma.
+- Il nostro server non è stato provato con client MCP di terze parti.
+
+### Limiti noti
+
+- Il client supporta solo server avviati come processo locale (trasporto
+  *stdio*), non quelli raggiungibili via rete.
+- Il client chiede la versione `2025-06-18` del protocollo.
+- Al primo avvio su questo PC il caricamento della libreria `mcp` è stato
+  bloccato una volta dal controllo delle applicazioni di Windows, poi è
+  passato. Se si ripete, il server non parte e all'avvio compare la nota
+  "Server MCP 'appunti' non collegato": il resto dell'assistente funziona.
+- Nella prova reale il modello gratuito ha salvato l'appunto giusto ma lo ha
+  poi riportato storpiato nella risposta: gli strumenti sono affidabili, il
+  testo che il modello ci costruisce sopra meno.
 
 ## Tappa 5 — Loop
 

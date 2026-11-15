@@ -40,6 +40,10 @@ class Registro:
 
     def __init__(self, strumenti=()) -> None:
         self.strumenti: dict[str, Strumento] = {}
+        # Messaggi sul caricamento delle estensioni, da mostrare all'utente.
+        self.note: list[str] = []
+        # Collegamenti aperti (i server MCP) da chiudere all'uscita.
+        self.risorse: list = []
         for strumento in strumenti:
             self.aggiungi(strumento)
 
@@ -48,6 +52,11 @@ class Registro:
 
     def definizioni(self) -> list[Strumento]:
         return list(self.strumenti.values())
+
+    def chiudi(self) -> None:
+        for risorsa in self.risorse:
+            risorsa.chiudi()
+        self.risorse.clear()
 
     def esegui(self, chiamata: ChiamataStrumento, conferma=None) -> RisultatoStrumento:
         """Esegue la chiamata chiesta dal modello e restituisce sempre un risultato.

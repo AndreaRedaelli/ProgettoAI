@@ -1,0 +1,6 @@
+{
+  "appunti": {
+    "comando": ["python", "-m", "server_mcp.appunti"],
+    "fidato": true
+  }
+}

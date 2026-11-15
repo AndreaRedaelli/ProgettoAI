@@ -7,8 +7,11 @@ from .guardia import Guardia, RichiestaBloccata, Verdetto
 __all__ = ["Audit", "Guardia", "RichiestaBloccata", "Verdetto", "crea_guardia"]
 
 
-def crea_guardia(provider) -> Guardia:
-    """La guardia con le impostazioni lette da config."""
+def crea_guardia(provider, strumenti=()) -> Guardia:
+    """La guardia con le impostazioni lette da config.
+
+    `strumenti` sono quelli a disposizione dell'agente: entrano nell'ambito.
+    """
     return Guardia(
         provider,
         ambito=config.AMBITO,
@@ -17,4 +20,5 @@ def crea_guardia(provider) -> Guardia:
         max_richieste_al_minuto=config.MAX_RICHIESTE_AL_MINUTO,
         max_richieste_sessione=config.MAX_RICHIESTE_SESSIONE,
         system_prompt=config.SYSTEM_PROMPT,
+        strumenti=strumenti,
     )

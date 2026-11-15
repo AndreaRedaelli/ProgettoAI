@@ -182,6 +182,19 @@ def test_fuori_ambito_viene_bloccata_con_il_motivo_del_giudice():
     assert "ricetta di cucina" in verdetto.motivo
 
 
+def test_gli_strumenti_installati_entrano_nell_ambito():
+    """Chi installa uno strumento per gli appunti vuole poterlo usare."""
+    from types import SimpleNamespace as Oggetto
+
+    provider = ProviderFinto([DENTRO])
+    appunti = Oggetto(nome="aggiungi_appunto", descrizione="Salva un appunto")
+    guardia = Guardia(provider, ambito="programmazione", strumenti=[appunti])
+
+    guardia.verifica("salva tra gli appunti: riunione lunedì")
+
+    assert "aggiungi_appunto (Salva un appunto)" in provider.richieste[0]["system"]
+
+
 def test_senza_ambito_il_giudice_non_viene_interpellato():
     provider = ProviderFinto()
     guardia = Guardia(provider, ambito="")

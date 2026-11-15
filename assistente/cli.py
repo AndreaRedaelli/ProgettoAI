@@ -42,13 +42,23 @@ def main() -> None:
     except ErroreAI as errore:
         print(errore)
         return
-    registro = crea_registro()
-    sessione = Sessione(provider, crea_guardia(provider), registro, chiedi_conferma)
+    registro = crea_registro(estensioni=True)
+    sessione = Sessione(provider, crea_guardia(provider, registro.definizioni()), registro, chiedi_conferma)
 
     print(f"Assistente pronto ({config.PROVIDER}, modello: {config.MODELLO}). {AIUTO}")
     print(f"Ambito: {config.AMBITO or 'libero (filtro spento)'}")
     print(f"Area di lavoro: {config.AREA_LAVORO}")
+    for nota in registro.note:
+        print(f"  {nota}")
 
+    try:
+        conversa(sessione, registro)
+    finally:
+        # I server MCP sono processi separati: vanno chiusi anche in caso di errore.
+        registro.chiudi()
+
+
+def conversa(sessione: Sessione, registro) -> None:
     while True:
         try:
             domanda = input("\nTu> ").strip()
@@ -69,7 +79,7 @@ def main() -> None:
             continue
         if domanda == "/strumenti":
             for strumento in registro.definizioni():
-                print(f"  {strumento.nome:<15} [{strumento.permesso}]  {strumento.descrizione}")
+                print(f"  {strumento.nome:<26} [{strumento.permesso}]  {strumento.descrizione}")
             continue
         if domanda.startswith("/"):
             print(AIUTO)

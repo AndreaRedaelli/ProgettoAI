@@ -42,6 +42,7 @@ class Guardia:
         max_richieste_al_minuto: int = 10,
         max_richieste_sessione: int = 50,
         system_prompt: str = "",
+        strumenti=(),
     ) -> None:
         self.provider = provider
         # Ambito vuoto = filtro di ambito spento.
@@ -52,6 +53,9 @@ class Guardia:
         self.max_richieste_sessione = max_richieste_sessione
         self.richieste_sessione = 0
         self.system_prompt = system_prompt
+        # Installare uno strumento allarga ciò che l'assistente è fatto per
+        # fare: il giudice deve saperlo, o bloccherebbe le richieste che lo usano.
+        self.capacita = "; ".join(f"{s.nome} ({s.descrizione})" for s in strumenti)
 
     def verifica(self, domanda: str, scambi=()) -> Verdetto:
         """Fa passare la domanda da tutti i controlli e registra l'esito."""
@@ -104,7 +108,10 @@ class Guardia:
         # 5. Ambito: l'unico controllo che costa una chiamata all'AI, quindi è l'ultimo.
         giudice = None
         if self.ambito:
-            giudizio = giudica_ambito(self.provider, self.ambito, testo, scambi)
+            ambito = self.ambito
+            if self.capacita:
+                ambito += f". Sono dentro anche le richieste che usano questi strumenti dell'assistente: {self.capacita}"
+            giudizio = giudica_ambito(self.provider, ambito, testo, scambi)
             giudice = giudizio.risposta
             if not giudizio.dentro:
                 return blocca("ambito", f"Richiesta fuori ambito. {giudizio.motivo}".strip(), giudice)
