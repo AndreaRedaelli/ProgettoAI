@@ -175,7 +175,7 @@ pianifica, agisce, verifica, ripete finché non ha finito.
 
 ---
 
-## ⬜ Tappa 6 — Interfaccia grafica
+## ✅ Tappa 6 — Interfaccia grafica
 
 **Cosa costruiamo:** una finestra (Tkinter, inclusa in Python) con una maschera
 per scegliere l'AI, inserire la chiave e conversare, al posto del terminale.
@@ -189,10 +189,13 @@ per scegliere l'AI, inserire la chiave e conversare, al posto del terminale.
 - Mostrare all'utente i blocchi dei controlli e le richieste di conferma.
 
 **Fatto quando**
-- [ ] dalla finestra si scelgono fornitore, modello e chiave senza toccare file
-- [ ] la risposta compare a frammenti e la finestra resta reattiva
-- [ ] la chiave non viene mai mostrata in chiaro né salvata senza consenso
-- [ ] i test coprono la logica dietro la finestra
+- [x] dalla finestra si scelgono fornitore, modello e chiave senza toccare file
+- [x] la risposta compare a frammenti e la finestra resta reattiva
+- [x] la chiave non viene mai mostrata in chiaro né salvata senza consenso
+- [x] i test coprono la logica dietro la finestra
+
+**Da verificare a mano:** l'aspetto della finestra e la finestra di dialogo
+delle conferme (i test la guidano da programma, senza guardarla).
 
 ---
 

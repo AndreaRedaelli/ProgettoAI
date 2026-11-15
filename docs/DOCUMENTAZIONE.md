@@ -17,7 +17,7 @@ la propria sezione qui sotto.
 | `tappa-3-agente` | Strumenti e ciclo agentico | presente |
 | `tappa-4-plugin` | Plugin e MCP | presente |
 | `tappa-5-loop` | Loop autonomo | presente |
-| `tappa-6-interfaccia` | Interfaccia grafica | da fare |
+| `tappa-6-interfaccia` | Interfaccia grafica | presente |
 
 I branch sono **a catena**: ognuno parte dal precedente. Per vedere che cosa
 aggiunge una tappa basta confrontarla con quella prima:
@@ -923,4 +923,148 @@ Anthropic è coperto solo dai test con il fornitore finto.
 
 ## Tappa 6 — Interfaccia grafica
 
-Branch `tappa-6-interfaccia`. *Da fare.*
+Branch `tappa-6-interfaccia`.
+
+### Cosa aggiunge rispetto alla tappa 5
+
+```
+assistente/
+├── gui_logica.py   ciò che la finestra sa fare, senza nemmeno un pulsante
+└── gui.py          la finestra Tkinter: maschera delle impostazioni e chat
+tests/
+└── test_gui.py
+```
+
+Piccole modifiche ai file esistenti: `crea_provider(chiave)` e i due fornitori
+accettano la chiave come parametro, `config.applica(...)` cambia fornitore,
+modello e ambito a programma avviato, `__main__.py` riconosce `gui`.
+
+Si avvia con:
+
+```powershell
+.venv\Scripts\python.exe -m assistente gui
+```
+
+Tkinter fa parte di Python: non c'è nulla da installare.
+
+### L'idea: la stessa sessione, un'altra interfaccia
+
+Dalla tappa 1 la classe `Sessione` non sa nulla di terminali. Qui si vede
+perché: la finestra usa **la stessa** `Sessione`, la stessa `Guardia`, lo
+stesso `Registro` della riga di comando. Nessun controllo di sicurezza è
+stato riscritto. `gui_logica.crea_sessione` fa lo stesso montaggio di
+`cli.main`; cambia solo da dove arrivano le scelte (la maschera invece del
+file `.env`).
+
+Anche la GUI è divisa in due:
+
+| File | Contiene | Si prova |
+|---|---|---|
+| `gui_logica.py` | validazione, montaggio, salvataggio, filo di lavoro | nei test, senza finestre |
+| `gui.py` | campi, pulsanti, colori | con pochi test che creano la finestra nascosta |
+
+### La maschera
+
+Campi: AI (`groq` o `anthropic`), modello, chiave API, ambito, e la casella
+"Salva queste impostazioni nel file .env". Parte compilata con ciò che c'è in
+`.env`. Cambiando AI vengono proposti il modello predefinito e la chiave di
+quel fornitore.
+
+`valida()` controlla solo la **forma** (fornitore noto, chiave presente e
+senza spazi). Se la chiave è giusta lo sa soltanto il fornitore: lo si scopre
+alla prima domanda, con l'errore "Chiave API non valida".
+
+### La chiave API
+
+| Scelta | Perché |
+|---|---|
+| Campo mascherato (`show="•"`) | Chi guarda lo schermo non la legge |
+| Passata direttamente al fornitore | Resta in memoria, non tocca il disco |
+| Salvataggio in `.env` solo con la casella, spenta in partenza | Una chiave su disco è comoda ma più esposta: decide l'utente |
+| Mai scritta nella chat, nello stato o nel log | Un test lo verifica |
+
+`salva_nel_file_env` usa `dotenv.set_key`, che riscrive solo le righe
+interessate e lascia intatte le altre.
+
+### Il problema: una finestra non può aspettare
+
+Una finestra vive di un ciclo (`mainloop`) che ridisegna e reagisce ai clic.
+Se dentro un clic chiamassimo `sessione.invia`, che può durare molti secondi,
+il ciclo si fermerebbe: finestra congelata, niente streaming.
+
+La soluzione è il **filo di lavoro** (`Lavoratore`):
+
+```
+filo della finestra                     filo di lavoro
+-------------------                     --------------
+clic su Invia ──────── avvia ─────────▶ sessione.invia(...)
+                                           │ frammento
+ogni 50 ms: leggi_coda() ◀── coda ──────── ┤ ("testo", "Cia")
+  scrive nella chat                        │ ("strumento", "...")
+                                           │ ("fine", None)
+```
+
+Due regole:
+
+1. **Il filo di lavoro non tocca mai la finestra.** Tkinter va usato da un
+   filo solo. Il lavoratore mette degli *eventi* in una `queue.Queue`, che è
+   fatta apposta per passare dati tra fili.
+2. **La finestra non aspetta mai.** Guarda la coda ogni 50 ms con
+   `radice.after(...)` e scrive ciò che trova.
+
+L'evento `"fine"` arriva sempre, anche dopo un errore (è in un `finally`):
+altrimenti il pulsante Invia resterebbe spento per sempre.
+
+### La conferma, tra due fili
+
+Nel terminale la conferma era un `input()`. Qui lo strumento viene eseguito
+nel filo di lavoro, ma la finestra di dialogo può aprirla solo il filo della
+finestra. `RichiestaConferma` fa da ponte: il lavoratore la mette in coda e
+si ferma su `attendi()`; la finestra la mostra e chiama `rispondi()`, che
+sblocca il lavoratore. Senza risposta vale **no**, come in tutta la tappa 3.
+
+### Ordine di lettura consigliato
+
+1. `gui_logica.py`, dall'inizio fino a `salva_nel_file_env`.
+2. `gui_logica.py`, `Lavoratore` e `RichiestaConferma`.
+3. `gui.py`, i metodi `connetti`, `invia` e `leggi_coda`.
+4. `gui.py`, `_crea_maschera` e `_crea_chat` (solo disegno).
+5. `tests/test_gui.py`.
+
+Confronta poi `cli.py` e `gui.py`: sono due interfacce diverse sulla stessa
+logica.
+
+### Esperimenti
+
+- In `Finestra.invia` sostituisci `self.lavoratore.invia(domanda)` con una
+  chiamata diretta a `self.sessione.invia(...)`: la finestra si congela fino
+  alla fine della risposta.
+- Scrivi una chiave sbagliata e connettiti: la maschera la accetta. Quando
+  arriva l'errore?
+- Imposta l'ambito a `cucina italiana` e chiedi una ricetta, poi una domanda
+  di programmazione.
+- Chiedi di scrivere un file e rispondi No alla conferma: cosa risponde il
+  modello?
+- Aggiungi un terzo pulsante "Strumenti" che elenca `registro.definizioni()`
+  nella chat.
+
+### Stato della verifica
+
+171 test in tutto, 23 per questa tappa. Provato con il modello vero di Groq
+attraverso la finestra: connessione dalla maschera, una domanda che usa lo
+strumento `calcola` (risposta corretta, comparsa nella chat) e una domanda
+fuori ambito (bloccata, con il motivo mostrato in rosso).
+
+La prova reale è stata fatta guidando la finestra da programma, tenuta
+nascosta: l'aspetto della finestra e la finestra di dialogo della conferma
+non sono stati controllati a occhio. Anthropic è coperto solo dai test con
+il fornitore finto.
+
+### Limiti noti
+
+- La connessione avviene nel filo della finestra: se un server MCP è lento
+  ad avviarsi, la finestra resta ferma per quell'attimo.
+- Non c'è un pulsante per interrompere una risposta in corso.
+- Il loop autonomo della tappa 5 si avvia solo da riga di comando.
+- `config.applica` cambia variabili globali: va bene per un programma con
+  una sola sessione, non per servirne molte insieme.

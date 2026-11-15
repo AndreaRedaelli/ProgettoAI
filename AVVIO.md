@@ -135,7 +135,26 @@ Per riprendere un lavoro interrotto o fermato per budget esaurito:
 .venv\Scripts\python.exe -m assistente loop --riprendi
 ```
 
-## 7. Se qualcosa non va
+## 7. L'interfaccia grafica
+
+Al posto del terminale puoi usare una finestra:
+
+```powershell
+.venv\Scripts\python.exe -m assistente gui
+```
+
+1. Scegli l'**AI** (`groq` o `anthropic`). Il modello predefinito viene proposto da solo.
+2. Incolla la **chiave API**. Il campo è mascherato; `mostra` la rende leggibile.
+   Se la chiave è già nel file `.env`, il campo è già compilato.
+3. Scrivi l'**ambito** consentito, oppure `libero` per spegnere il filtro.
+4. Premi **Connetti**, poi scrivi la domanda e premi Invio.
+
+La chiave resta in memoria e sparisce alla chiusura. Viene scritta nel file
+`.env` solo se spunti "Salva queste impostazioni": in quel caso il passo 4
+di questa guida non serve più. Le azioni rischiose (scrivere, eliminare,
+eseguire) aprono una finestra di conferma.
+
+## 8. Se qualcosa non va
 
 | Messaggio | Causa | Rimedio |
 |---|---|---|

@@ -15,10 +15,9 @@ ESITI = {"max_tokens": "troncata", "refusal": "rifiuto"}
 class ProviderAnthropic:
     NOME_CHIAVE = "ANTHROPIC_API_KEY"
 
-    def __init__(self, client=None) -> None:
-        # Senza argomenti, il client legge la chiave da ANTHROPIC_API_KEY.
+    def __init__(self, client=None, chiave: str | None = None) -> None:
         # Nei test passiamo un client finto al posto di quello vero.
-        self.client = client or anthropic.Anthropic()
+        self.client = client or anthropic.Anthropic(api_key=chiave)
 
     def chiedi(self, messaggi: list, su_testo, system: str | None = None, strumenti=None) -> Risposta:
         """Invia l'intera conversazione; chiama `su_testo` a ogni frammento.

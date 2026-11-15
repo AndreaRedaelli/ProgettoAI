@@ -15,8 +15,13 @@ __all__ = [
 ]
 
 
-def crea_provider():
-    """Restituisce il fornitore configurato, pronto a ricevere domande."""
+def crea_provider(chiave: str | None = None):
+    """Restituisce il fornitore configurato, pronto a ricevere domande.
+
+    `chiave` è la chiave API da usare; se manca si legge dall'ambiente
+    (cioè dal file .env). L'interfaccia grafica la passa direttamente, così
+    la chiave resta in memoria e non viene scritta da nessuna parte.
+    """
     # L'import è dentro il ramo: carichiamo solo l'SDK che serve davvero.
     if config.PROVIDER == "groq":
         from .groq_provider import ProviderGroq as Provider
@@ -28,8 +33,9 @@ def crea_provider():
             f"usa uno tra {', '.join(config.MODELLI_PREDEFINITI)}."
         )
 
-    if not os.getenv(Provider.NOME_CHIAVE):
+    chiave = chiave or os.getenv(Provider.NOME_CHIAVE)
+    if not chiave:
         raise ErroreAI(
             f"Manca la chiave API: copia .env.example in .env e inserisci {Provider.NOME_CHIAVE}."
         )
-    return Provider()
+    return Provider(chiave=chiave)

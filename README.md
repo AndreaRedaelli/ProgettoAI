@@ -35,6 +35,8 @@ La variabile `AI_PROVIDER` nel file `.env` decide quale AI usare.
 
 Comandi nella chat: `/costo`, `/nuovo`, `/esci`.
 
+Interfaccia grafica: `.venv\Scripts\python.exe -m assistente gui`
+
 ## Struttura
 
 | File | Ruolo |
