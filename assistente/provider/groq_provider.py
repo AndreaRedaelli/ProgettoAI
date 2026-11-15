@@ -14,10 +14,14 @@ class ProviderGroq:
         # Nei test passiamo un client finto al posto di quello vero.
         self.client = client or groq.Groq()
 
-    def chiedi(self, messaggi: list, su_testo) -> Risposta:
-        """Invia l'intera conversazione; chiama `su_testo` a ogni frammento."""
+    def chiedi(self, messaggi: list, su_testo, system: str | None = None) -> Risposta:
+        """Invia l'intera conversazione; chiama `su_testo` a ogni frammento.
+
+        `system` sostituisce il system prompt abituale: serve a usare lo
+        stesso modello per un compito diverso, come il filtro di ambito.
+        """
         # Qui il system prompt è il primo messaggio della lista.
-        richiesta = [{"role": "system", "content": config.SYSTEM_PROMPT}, *messaggi]
+        richiesta = [{"role": "system", "content": system or config.SYSTEM_PROMPT}, *messaggi]
 
         parti: list[str] = []
         motivo = None

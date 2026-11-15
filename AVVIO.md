@@ -83,8 +83,11 @@ Variabili facoltative:
 |---|---|---|
 | `MODELLO` | Modello da usare | `openai/gpt-oss-120b` con Groq, `claude-opus-5-5` con Anthropic |
 | `EFFORT` | Solo Anthropic: quanto si impegna il modello (`low`, `medium`, `high`) | `medium` |
+| `AMBITO` | Funzione prevista dell'assistente: le richieste che ne escono vengono bloccate | programmazione, informatica, intelligenza artificiale |
 
 Con Anthropic, per spendere meno durante le prove imposta `MODELLO=claude-haiku-5-5`.
+
+Per un assistente senza limiti di argomento imposta `AMBITO=libero`.
 
 ## 5. Avviare
 
@@ -115,6 +118,8 @@ Scrivi la domanda e premi Invio.
 | `Manca la chiave API ...` | Il file `.env` non esiste o la chiave del fornitore scelto è vuota | Ripeti i passi 2 e 4 |
 | `AI_PROVIDER='...' non riconosciuto` | Valore diverso da `groq` e `anthropic` | Correggi `AI_PROVIDER` in `.env` |
 | `Chiave API non valida` | Chiave errata, incompleta o revocata | Ricopiala o creane una nuova |
+| `[Bloccata] Richiesta fuori ambito` | La domanda esce dalla funzione prevista | Cambia `AMBITO` in `.env`, oppure `AMBITO=libero` |
+| `[Bloccata] Troppe richieste in poco tempo` | Superato il limite al minuto dell'assistente | Aspetta un minuto, o alza `MAX_RICHIESTE_AL_MINUTO` |
 | `Limite di richieste raggiunto` | Superato il limite del piano | Aspetta, oppure cambia fornitore |
 | `Errore dell'API (404)` o messaggio sul modello | Il modello indicato non esiste più | Imposta `MODELLO` con un modello disponibile nella console del fornitore |
 | `No module named ...` | Dipendenze non installate, o Python diverso da quello di `.venv` | Ripeti il secondo comando del passo 2 e avvia con il comando del passo 5 |

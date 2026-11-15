@@ -5,6 +5,7 @@ import sys
 from . import config
 from .provider import ErroreAI, crea_provider
 from .sessione import Sessione
+from .sicurezza import RichiestaBloccata, crea_guardia
 
 AIUTO = "Comandi: /costo  /nuovo  /esci"
 
@@ -18,12 +19,14 @@ def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8")
 
     try:
-        sessione = Sessione(crea_provider())
+        provider = crea_provider()
     except ErroreAI as errore:
         print(errore)
         return
+    sessione = Sessione(provider, crea_guardia(provider))
 
     print(f"Assistente pronto ({config.PROVIDER}, modello: {config.MODELLO}). {AIUTO}")
+    print(f"Ambito: {config.AMBITO or 'libero (filtro spento)'}")
 
     while True:
         try:
@@ -50,6 +53,9 @@ def main() -> None:
         print("\nAI> ", end="", flush=True)
         try:
             risposta = sessione.invia(domanda, stampa_frammento)
+        except RichiestaBloccata as blocco:
+            print(f"[Bloccata] {blocco}")
+            continue
         except KeyboardInterrupt:
             print("\n[Interrotto]")
             continue
@@ -58,6 +64,10 @@ def main() -> None:
             continue
         print()
 
+        if sessione.dati_mascherati:
+            print(f"[Mascherati prima dell'invio: {', '.join(sessione.dati_mascherati)}]")
+        for avviso in sessione.avvisi:
+            print(f"[Avviso: {avviso}]")
         if risposta.esito == "rifiuto":
             print("[Il modello ha rifiutato la richiesta: non la tengo in cronologia.]")
         elif risposta.esito == "troncata":

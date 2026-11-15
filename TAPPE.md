@@ -82,7 +82,7 @@ streaming, con la cronologia della conversazione.
 
 ---
 
-## ⬜ Tappa 2 — Controlli di sicurezza
+## ✅ Tappa 2 — Controlli di sicurezza
 
 **Cosa costruiamo:** uno strato che ogni richiesta deve attraversare prima di
 arrivare al modello. In particolare un **filtro di ambito**: l'assistente ha
@@ -101,12 +101,12 @@ una funzione prevista, e le richieste che ne escono vengono bloccate.
 - **Evals**: domande di prova (anche ostili) da rilanciare a ogni modifica.
 
 **Fatto quando**
-- [ ] una richiesta troppo lunga o oltre i limiti viene rifiutata con un motivo
-- [ ] i dati sensibili vengono mascherati prima di lasciare il computer
-- [ ] una richiesta fuori ambito viene bloccata, una dentro passa
-- [ ] un tentativo di prompt injection viene bloccato
-- [ ] ogni richiesta lascia una riga nel log di audit
-- [ ] i test passano e le evals si lanciano con un comando
+- [x] una richiesta troppo lunga o oltre i limiti viene rifiutata con un motivo
+- [x] i dati sensibili vengono mascherati prima di lasciare il computer
+- [x] una richiesta fuori ambito viene bloccata, una dentro passa
+- [x] un tentativo di prompt injection viene bloccato
+- [x] ogni richiesta lascia una riga nel log di audit
+- [x] i test passano e le evals si lanciano con un comando
 
 ---
 

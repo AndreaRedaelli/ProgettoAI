@@ -20,13 +20,17 @@ class ProviderAnthropic:
         # Nei test passiamo un client finto al posto di quello vero.
         self.client = client or anthropic.Anthropic()
 
-    def chiedi(self, messaggi: list, su_testo) -> Risposta:
-        """Invia l'intera conversazione; chiama `su_testo` a ogni frammento."""
+    def chiedi(self, messaggi: list, su_testo, system: str | None = None) -> Risposta:
+        """Invia l'intera conversazione; chiama `su_testo` a ogni frammento.
+
+        `system` sostituisce il system prompt abituale: serve a usare lo
+        stesso modello per un compito diverso, come il filtro di ambito.
+        """
         parametri = dict(
             model=config.MODELLO,
             max_tokens=config.MAX_TOKENS,
             # Qui il system prompt è un parametro a parte, non un messaggio.
-            system=config.SYSTEM_PROMPT,
+            system=system or config.SYSTEM_PROMPT,
             messages=messaggi,
             output_config={"effort": config.EFFORT},
         )
