@@ -41,12 +41,19 @@ class ProviderFinto:
         )
 
 
+    def messaggi_risultati(self, risultati) -> list:
+        return [
+            {"role": "tool", "id": r.id, "content": r.contenuto, "errore": r.errore}
+            for r in risultati
+        ]
+
+
 @pytest.fixture
 def provider_finto():
     return ProviderFinto()
 
 
-def risposta_finta(testo="ok", esito="fine", modello="modello-finto", ingresso=10, uscita=5):
+def risposta_finta(testo="ok", esito="fine", modello="modello-finto", ingresso=10, uscita=5, chiamate=()):
     return Risposta(
         messaggio={"role": "assistant", "content": testo},
         testo=testo,
@@ -54,6 +61,7 @@ def risposta_finta(testo="ok", esito="fine", modello="modello-finto", ingresso=1
         token_ingresso=ingresso,
         token_uscita=uscita,
         esito=esito,
+        chiamate=list(chiamate),
     )
 
 

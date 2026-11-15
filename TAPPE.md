@@ -110,7 +110,7 @@ una funzione prevista, e le richieste che ne escono vengono bloccate.
 
 ---
 
-## ⬜ Tappa 3 — Agente
+## ✅ Tappa 3 — Agente
 
 **Cosa costruiamo:** diamo al modello degli strumenti e scriviamo a mano il
 ciclo: il modello chiede uno strumento → lo eseguiamo → gli restituiamo il
@@ -127,10 +127,10 @@ risultato → ripete.
 - I controlli della tappa 2 applicati anche a ciò che gli strumenti restituiscono.
 
 **Fatto quando**
-- [ ] l'agente risponde a una domanda sui file usando gli strumenti, con entrambi i fornitori
-- [ ] un'azione che modifica qualcosa chiede conferma prima di partire
-- [ ] un percorso fuori da `area_lavoro/` viene rifiutato
-- [ ] i test coprono il ciclo e ogni strumento
+- [x] l'agente risponde a una domanda sui file usando gli strumenti (provato con Groq; Anthropic coperto dai test)
+- [x] un'azione che modifica qualcosa chiede conferma prima di partire
+- [x] un percorso fuori da `area_lavoro/` viene rifiutato
+- [x] i test coprono il ciclo e ogni strumento
 
 ---
 

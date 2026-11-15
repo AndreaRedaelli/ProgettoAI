@@ -52,11 +52,11 @@ def test_viene_creato_il_fornitore_richiesto(monkeypatch, nome, chiave, classe):
 
 # --- Groq -----------------------------------------------------------------
 
-def pezzo_groq(testo=None, fine=None, uso=None):
+def pezzo_groq(testo=None, fine=None, uso=None, chiamate=None):
     """Imita un pezzo dello streaming di Groq."""
     return Oggetto(
         model="modello-groq",
-        choices=[Oggetto(delta=Oggetto(content=testo), finish_reason=fine)],
+        choices=[Oggetto(delta=Oggetto(content=testo, tool_calls=chiamate), finish_reason=fine)],
         usage=None,
         x_groq=Oggetto(usage=uso) if uso else None,
     )

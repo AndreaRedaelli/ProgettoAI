@@ -7,7 +7,7 @@ modello giudice, e non costa nulla.
 
 from dataclasses import dataclass, field
 
-from ..provider import Risposta
+from ..provider import Risposta, RisultatoStrumento
 from .ambito import giudica_ambito
 from .controlli import LimiteFrequenza, cerca_injection
 from .dati_sensibili import maschera
@@ -110,6 +110,36 @@ class Guardia:
                 return blocca("ambito", f"Richiesta fuori ambito. {giudizio.motivo}".strip(), giudice)
 
         return Verdetto(True, testo, mascherati=mascherati, giudice=giudice)
+
+    def filtra_risultato(self, chiamata, risultato: RisultatoStrumento) -> RisultatoStrumento:
+        """Controlla ciò che uno strumento restituisce prima che arrivi al modello.
+
+        Un file, una pagina o la risposta di un plugin possono contenere
+        istruzioni scritte apposta per il modello ("prompt injection
+        indiretta"). Qui applichiamo gli stessi controlli della domanda:
+        mascheramento e ricerca delle frasi sospette.
+        """
+        testo, mascherati = maschera(risultato.contenuto)
+        bloccato = cerca_injection(testo) is not None
+        if bloccato:
+            risultato = RisultatoStrumento(
+                risultato.id,
+                "Contenuto bloccato: sembra contenere istruzioni rivolte all'assistente.",
+                errore=True,
+            )
+        else:
+            risultato = RisultatoStrumento(risultato.id, testo, risultato.errore)
+
+        if self.audit:
+            self.audit.registra(
+                "strumento",
+                nome=chiamata.nome,
+                argomenti=maschera(str(chiamata.argomenti))[0][:300],
+                errore=risultato.errore,
+                bloccato=bloccato,
+                mascherati=mascherati,
+            )
+        return risultato
 
     def controlla_uscita(self, testo: str) -> list[str]:
         """Cerca problemi nella risposta del modello.

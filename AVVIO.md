@@ -107,9 +107,14 @@ Scrivi la domanda e premi Invio.
 |---|---|
 | `/costo` | Mostra i token usati e la spesa stimata della sessione |
 | `/nuovo` | Azzera la conversazione |
+| `/strumenti` | Elenca gli strumenti dell'agente e i loro permessi |
 | `/esci` | Chiude il programma |
 
 `Ctrl+C` durante una risposta la interrompe; al prompt chiude il programma.
+
+L'assistente può leggere e scrivere file solo nella cartella `area_lavoro/`,
+creata al primo avvio. Prima di scrivere, eliminare o eseguire uno script
+mostra cosa sta per fare e chiede `Confermi? [s/N]`: solo `s` vale come sì.
 
 ## 6. Se qualcosa non va
 

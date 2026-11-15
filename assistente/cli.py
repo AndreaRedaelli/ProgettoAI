@@ -6,12 +6,31 @@ from . import config
 from .provider import ErroreAI, crea_provider
 from .sessione import Sessione
 from .sicurezza import RichiestaBloccata, crea_guardia
+from .strumenti import crea_registro
 
-AIUTO = "Comandi: /costo  /nuovo  /esci"
+AIUTO = "Comandi: /costo  /nuovo  /strumenti  /esci"
 
 
 def stampa_frammento(testo: str) -> None:
     print(testo, end="", flush=True)
+
+
+def stampa_strumento(chiamata, risultato) -> None:
+    esito = "ERRORE: " + risultato.contenuto if risultato.errore else "ok"
+    print(f"\n  [strumento {chiamata.nome} {chiamata.argomenti}: {esito[:120]}]")
+
+
+def chiedi_conferma(strumento, argomenti) -> bool:
+    """Mostra all'utente cosa sta per succedere e aspetta il suo sì."""
+    dettaglio = strumento.anteprima(**argomenti) if strumento.anteprima else str(argomenti)
+    print(f"\n--- L'assistente chiede di usare '{strumento.nome}' ---")
+    print(dettaglio[:1500])
+    print("---")
+    try:
+        # Qualunque risposta diversa da "s" vale no.
+        return input("Confermi? [s/N] ").strip().lower() == "s"
+    except (EOFError, KeyboardInterrupt):
+        return False
 
 
 def main() -> None:
@@ -23,10 +42,12 @@ def main() -> None:
     except ErroreAI as errore:
         print(errore)
         return
-    sessione = Sessione(provider, crea_guardia(provider))
+    registro = crea_registro()
+    sessione = Sessione(provider, crea_guardia(provider), registro, chiedi_conferma)
 
     print(f"Assistente pronto ({config.PROVIDER}, modello: {config.MODELLO}). {AIUTO}")
     print(f"Ambito: {config.AMBITO or 'libero (filtro spento)'}")
+    print(f"Area di lavoro: {config.AREA_LAVORO}")
 
     while True:
         try:
@@ -46,13 +67,17 @@ def main() -> None:
         if domanda == "/costo":
             print(sessione.riepilogo())
             continue
+        if domanda == "/strumenti":
+            for strumento in registro.definizioni():
+                print(f"  {strumento.nome:<15} [{strumento.permesso}]  {strumento.descrizione}")
+            continue
         if domanda.startswith("/"):
             print(AIUTO)
             continue
 
         print("\nAI> ", end="", flush=True)
         try:
-            risposta = sessione.invia(domanda, stampa_frammento)
+            risposta = sessione.invia(domanda, stampa_frammento, stampa_strumento)
         except RichiestaBloccata as blocco:
             print(f"[Bloccata] {blocco}")
             continue

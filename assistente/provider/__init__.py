@@ -3,9 +3,16 @@
 import os
 
 from .. import config
-from .base import ErroreAI, Risposta, costo_in_dollari
+from .base import ChiamataStrumento, ErroreAI, Risposta, RisultatoStrumento, costo_in_dollari
 
-__all__ = ["ErroreAI", "Risposta", "costo_in_dollari", "crea_provider"]
+__all__ = [
+    "ChiamataStrumento",
+    "ErroreAI",
+    "Risposta",
+    "RisultatoStrumento",
+    "costo_in_dollari",
+    "crea_provider",
+]
 
 
 def crea_provider():

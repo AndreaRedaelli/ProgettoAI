@@ -5,13 +5,32 @@ i suoi errori. Qui definiamo la forma unica in cui il resto del programma li
 vede, così la chat non deve sapere con chi sta parlando.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from .. import config
 
 
 class ErroreAI(Exception):
     """Errore di un fornitore, già tradotto in un messaggio per l'utente."""
+
+
+@dataclass
+class ChiamataStrumento:
+    """Il modello chiede di eseguire uno strumento."""
+
+    id: str
+    nome: str
+    # None se il modello ha scritto argomenti che non si riescono a leggere.
+    argomenti: dict | None
+
+
+@dataclass
+class RisultatoStrumento:
+    """Ciò che restituiamo al modello dopo aver eseguito (o rifiutato) lo strumento."""
+
+    id: str
+    contenuto: str
+    errore: bool = False
 
 
 @dataclass
@@ -25,6 +44,8 @@ class Risposta:
     token_uscita: int
     # "fine", "troncata" oppure "rifiuto"
     esito: str
+    # Strumenti che il modello chiede di eseguire. Vuota = risposta definitiva.
+    chiamate: list[ChiamataStrumento] = field(default_factory=list)
 
 
 def traduci_errore(sdk, errore: Exception, nome_chiave: str) -> ErroreAI:
