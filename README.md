@@ -4,6 +4,8 @@ Progetto didattico per imparare l'AI Engineering. Il percorso è in [TAPPE.md](T
 
 La guida completa per configurarlo e avviarlo è in [AVVIO.md](AVVIO.md).
 
+La spiegazione di come è fatto è in [docs/DOCUMENTAZIONE.md](docs/DOCUMENTAZIONE.md).
+
 ## Preparazione (una volta sola)
 
 ```powershell

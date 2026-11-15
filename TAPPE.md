@@ -1,10 +1,39 @@
 # Percorso AI Engineering — le tappe
 
-Un unico progetto: un assistente da riga di comando che a ogni tappa guadagna
-una capacità nuova. Regola di fondo: **niente framework** fino alla tappa 4,
-così i concetti restano visibili nel nostro codice.
+Un unico progetto: un assistente che a ogni tappa guadagna una capacità nuova.
+Regola di fondo: **niente framework**, così i concetti restano visibili nel
+nostro codice.
 
-## Regola valida per tutte le tappe: il fornitore di AI si sceglie
+La spiegazione tecnica di ogni tappa è in [docs/DOCUMENTAZIONE.md](docs/DOCUMENTAZIONE.md).
+
+Stato: ⬜ da fare · 🔄 in corso · ✅ fatta
+
+## Regole valide per tutte le tappe
+
+### Ogni tappa ha il suo branch
+
+| Tappa | Branch |
+|---|---|
+| 1 | `tappa-1-chat` |
+| 2 | `tappa-2-sicurezza` |
+| 3 | `tappa-3-agente` |
+| 4 | `tappa-4-plugin` |
+| 5 | `tappa-5-loop` |
+| 6 | `tappa-6-interfaccia` |
+
+I branch sono a catena: ognuno parte dal precedente. `main` contiene la base
+e la documentazione; le tappe si uniscono a `main` dopo averle studiate.
+
+### Ogni tappa ha i suoi test
+
+Una tappa è chiusa quando:
+
+- il codice funziona con il modello vero;
+- i test automatici passano (`pytest`), senza rete e senza costi, grazie a un
+  fornitore finto;
+- la sua sezione nella documentazione tecnica è aggiornata.
+
+### Il fornitore di AI si sceglie
 
 L'assistente non è legato a una sola AI. La variabile d'ambiente
 `AI_PROVIDER` (nel file `.env`) decide quale usare:
@@ -17,19 +46,9 @@ L'assistente non è legato a una sola AI. La variabile d'ambiente
 Se `AI_PROVIDER` manca, vale `groq`. `MODELLO` è facoltativa: se manca, ogni
 fornitore usa il suo modello predefinito.
 
-Come è fatto: tutto ciò che dipende dal fornitore sta in
-`assistente/provider/`, un file per fornitore. Il resto del programma vede
-solo una forma comune (`chiedi(...)` che restituisce una `Risposta`), quindi
-**ogni capacità aggiunta nelle tappe successive deve funzionare con entrambi
-i fornitori**. Aggiungere un terzo fornitore significa aggiungere un file lì,
-senza toccare il resto.
-
----
-
-Ogni tappa si chiude quando: il codice funziona, hai provato a romperlo, e
-c'è un commit git.
-
-Stato: ⬜ da fare · 🔄 in corso · ✅ fatta
+Tutto ciò che dipende dal fornitore sta in `assistente/provider/`, un file per
+fornitore. **Ogni capacità aggiunta nelle tappe successive deve funzionare con
+entrambi i fornitori.**
 
 ---
 
@@ -43,70 +62,75 @@ streaming, con la cronologia della conversazione.
 - Ruoli dei messaggi (`user`, `assistant`) e system prompt.
 - Streaming: mostrare la risposta mentre viene generata.
 - Token in ingresso e in uscita, e come diventano un costo.
-- `stop_reason`: perché il modello si è fermato.
-- Errori dell'API (chiave errata, limiti di frequenza, rete) e retry.
-- Astrazione del fornitore: le API si somigliano ma non sono uguali (dove va
-  il system prompt, che forma ha la risposta, come si contano i token).
+- Perché il modello si è fermato (fine, troncata, rifiuto).
+- Errori dell'API (chiave errata, limiti di frequenza, rete).
+- Astrazione del fornitore: le API si somigliano ma non sono uguali.
+- Come si testa codice che chiama un'AI senza chiamarla davvero.
 
 **Fatto quando**
 - [ ] `python -m assistente` apre la chat e risponde in streaming con Groq
-- [ ] con `AI_PROVIDER=anthropic` la stessa chat funziona senza altre modifiche
-- [ ] un valore sconosciuto di `AI_PROVIDER` produce un messaggio chiaro
 - [ ] la seconda domanda può riferirsi alla prima (la cronologia funziona)
+- [ ] con `AI_PROVIDER=anthropic` la stessa chat funziona senza altre modifiche
 - [ ] `/costo` mostra token e spesa stimata della sessione
-- [ ] una chiave API sbagliata produce un messaggio chiaro, non un crash
+- [ ] chiave mancante, chiave errata o fornitore sconosciuto danno un messaggio chiaro
+- [ ] i test passano
 
 **Esperimenti per capire**
 - Commenta la riga che aggiunge la risposta alla cronologia: cosa succede?
 - Cambia il system prompt in `config.py` e osserva come cambia il tono.
-- Cambia `AI_PROVIDER` e `MODELLO` nel file `.env` e confronta qualità, velocità e costo.
 - Confronta `groq_provider.py` e `anthropic_provider.py`: cosa cambia davvero tra le due API?
 
 ---
 
 ## ⬜ Tappa 2 — Controlli di sicurezza
 
-**Cosa costruiamo:** uno strato che ogni richiesta e ogni risposta deve
-attraversare prima di proseguire.
+**Cosa costruiamo:** uno strato che ogni richiesta deve attraversare prima di
+arrivare al modello. In particolare un **filtro di ambito**: l'assistente ha
+una funzione prevista, e le richieste che ne escono vengono bloccate.
 
 **Concetti da imparare**
 - I controlli stanno fuori da `provider/`: valgono per qualunque fornitore.
-- Controlli in ingresso: lunghezza massima, limite di richieste, tetto di spesa.
-- Mascheramento di dati sensibili (email, chiavi, numeri di carta) prima dell'invio.
-- Prompt injection: cos'è, come si rileva, perché non si elimina del tutto.
-- Controlli in uscita: risposta validata con uno schema (structured output).
-- Log di audit: chi ha chiesto cosa, quando, e cosa è stato bloccato.
-- **Evals**: un insieme di domande di prova (anche ostili) da rilanciare a ogni modifica.
+- Controlli a strati, dal più economico al più costoso.
+- Limiti: lunghezza della domanda, richieste al minuto, tetto per sessione.
+- Mascheramento di dati sensibili (email, chiavi, carte) prima dell'invio.
+- Prompt injection: cos'è, come si riconosce, perché non si elimina del tutto.
+- Filtro di ambito con un modello che fa da giudice, e risposta del giudice
+  validata con uno schema.
+- "Fail closed": se un controllo non riesce a decidere, si blocca.
+- Log di audit: cosa è stato chiesto, quando, e cosa è stato bloccato.
+- **Evals**: domande di prova (anche ostili) da rilanciare a ogni modifica.
 
 **Fatto quando**
-- [ ] una richiesta troppo lunga o oltre budget viene rifiutata con un motivo
+- [ ] una richiesta troppo lunga o oltre i limiti viene rifiutata con un motivo
 - [ ] i dati sensibili vengono mascherati prima di lasciare il computer
+- [ ] una richiesta fuori ambito viene bloccata, una dentro passa
+- [ ] un tentativo di prompt injection viene bloccato
 - [ ] ogni richiesta lascia una riga nel log di audit
-- [ ] esiste una prima suite di evals che si lancia con un comando
+- [ ] i test passano e le evals si lanciano con un comando
 
 ---
 
 ## ⬜ Tappa 3 — Agente
 
-**Cosa costruiamo:** diamo al modello degli strumenti (leggere file, cercare,
-eseguire comandi) e scriviamo a mano il ciclo: il modello chiede uno
-strumento → lo eseguiamo → gli restituiamo il risultato → ripete.
+**Cosa costruiamo:** diamo al modello degli strumenti e scriviamo a mano il
+ciclo: il modello chiede uno strumento → lo eseguiamo → gli restituiamo il
+risultato → ripete.
 
 **Concetti da imparare**
 - Tool use: come si descrive uno strumento al modello (nome, descrizione, schema).
 - Uno strumento si definisce una volta sola; ogni fornitore lo traduce nel
-  proprio formato. Prima verifica: il modello gratuito di Groq li usa bene?
-- Il ciclo agentico: `while stop_reason == "tool_use"`.
-- Chiamate a strumenti in parallelo e gestione degli errori degli strumenti.
-- Conferma umana per le azioni rischiose.
-- Confinamento: l'agente lavora solo dentro una cartella.
-- I controlli della tappa 2 applicati a ogni chiamata di strumento.
+  proprio formato.
+- Il ciclo agentico: continua finché il modello chiede strumenti.
+- Gestione degli errori degli strumenti: l'errore torna al modello, non all'utente.
+- Confinamento: l'agente lavora solo dentro la cartella `area_lavoro/`.
+- Permessi: azioni libere, azioni che chiedono conferma, azioni vietate.
+- I controlli della tappa 2 applicati anche a ciò che gli strumenti restituiscono.
 
 **Fatto quando**
-- [ ] l'agente risponde a "quanti file Python ci sono qui?" usando gli strumenti, con entrambi i fornitori
-- [ ] un comando rischioso chiede conferma prima di partire
-- [ ] un percorso fuori dalla cartella di lavoro viene rifiutato
-- [ ] le evals coprono anche l'uso degli strumenti
+- [ ] l'agente risponde a una domanda sui file usando gli strumenti, con entrambi i fornitori
+- [ ] un'azione che modifica qualcosa chiede conferma prima di partire
+- [ ] un percorso fuori da `area_lavoro/` viene rifiutato
+- [ ] i test coprono il ciclo e ogni strumento
 
 ---
 
@@ -125,6 +149,7 @@ strumento → lo eseguiamo → gli restituiamo il risultato → ripete.
 - [ ] aggiungere uno strumento non richiede modifiche al ciclo dell'agente
 - [ ] l'assistente usa strumenti di un server MCP esterno
 - [ ] un nostro server MCP funziona anche da altri client
+- [ ] i test passano
 
 ---
 
@@ -136,21 +161,43 @@ pianifica, agisce, verifica, ripete finché non ha finito.
 **Concetti da imparare**
 - Differenza tra ciclo agentico (tappa 3, un turno) e loop autonomo (molti turni).
 - Criteri di arresto: obiettivo raggiunto, budget finito, nessun progresso.
-- Con Groq il budget è il numero di richieste al giorno, con Anthropic è la spesa.
+- Con Groq il budget è il numero di richieste, con Anthropic è la spesa.
+- Senza un umano che conferma, gli strumenti rischiosi restano spenti.
 - Verifica del risultato: chi decide che il lavoro è fatto bene?
 - Stato salvato su disco tra un'iterazione e l'altra, per riprendere.
-- Gestione del contesto che cresce (riassunti, compattazione).
-- Esecuzioni pianificate (per esempio ogni mattina).
+- Gestione del contesto che cresce.
 
 **Fatto quando**
 - [ ] l'agente porta a termine un obiettivo in più iterazioni senza intervento
 - [ ] si ferma da solo quando finisce il budget o non fa progressi
 - [ ] un'esecuzione interrotta riprende da dove era rimasta
+- [ ] i test passano
+
+---
+
+## ⬜ Tappa 6 — Interfaccia grafica
+
+**Cosa costruiamo:** una finestra (Tkinter, inclusa in Python) con una maschera
+per scegliere l'AI, inserire la chiave e conversare, al posto del terminale.
+
+**Concetti da imparare**
+- Separare logica e interfaccia: la stessa sessione serve terminale e finestra.
+- Streaming in una finestra: la richiesta gira in un thread separato per non
+  bloccare l'interfaccia.
+- Gestione della chiave: campo mascherato, tenuta in memoria, salvataggio in
+  `.env` solo su richiesta.
+- Mostrare all'utente i blocchi dei controlli e le richieste di conferma.
+
+**Fatto quando**
+- [ ] dalla finestra si scelgono fornitore, modello e chiave senza toccare file
+- [ ] la risposta compare a frammenti e la finestra resta reattiva
+- [ ] la chiave non viene mai mostrata in chiaro né salvata senza consenso
+- [ ] i test coprono la logica dietro la finestra
 
 ---
 
 ## Fili che attraversano tutte le tappe
 
-- **Evals** — misurare prima di cambiare, dalla tappa 2 in poi.
-- **Costi** — sapere sempre quanto costa una richiesta.
+- **Test ed evals** — misurare prima di cambiare.
+- **Costi e limiti** — sapere sempre quanto costa una richiesta.
 - **Osservabilità** — poter ricostruire cosa è successo e perché.
