@@ -153,7 +153,7 @@ risultato → ripete.
 
 ---
 
-## ⬜ Tappa 5 — Loop
+## ✅ Tappa 5 — Loop
 
 **Cosa costruiamo:** dai un obiettivo e l'agente lavora in autonomia:
 pianifica, agisce, verifica, ripete finché non ha finito.
@@ -168,10 +168,10 @@ pianifica, agisce, verifica, ripete finché non ha finito.
 - Gestione del contesto che cresce.
 
 **Fatto quando**
-- [ ] l'agente porta a termine un obiettivo in più iterazioni senza intervento
-- [ ] si ferma da solo quando finisce il budget o non fa progressi
-- [ ] un'esecuzione interrotta riprende da dove era rimasta
-- [ ] i test passano
+- [x] l'agente porta a termine un obiettivo in più iterazioni senza intervento
+- [x] si ferma da solo quando finisce il budget o non fa progressi
+- [x] un'esecuzione interrotta riprende da dove era rimasta
+- [x] i test passano
 
 ---
 

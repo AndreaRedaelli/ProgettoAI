@@ -63,6 +63,13 @@ MAX_PASSI_AGENTE = _intero("MAX_PASSI_AGENTE", 8)
 # Secondi concessi a uno script eseguito dall'agente.
 TEMPO_MASSIMO_SCRIPT = _intero("TEMPO_MASSIMO_SCRIPT", 10)
 
+# --- Loop autonomo ---
+# Tre tetti indipendenti: il loop si ferma al primo che raggiunge.
+LOOP_MAX_ITERAZIONI = _intero("LOOP_MAX_ITERAZIONI", 6)
+LOOP_MAX_RICHIESTE = _intero("LOOP_MAX_RICHIESTE", 30)
+LOOP_MAX_SECONDI = _intero("LOOP_MAX_SECONDI", 300)
+FILE_STATO_LOOP = os.getenv("FILE_STATO_LOOP") or "stato/loop.json"
+
 # --- Estensioni ---
 # Cartella dei plugin: ogni file .py aggiunge strumenti.
 CARTELLA_PLUGIN = os.getenv("CARTELLA_PLUGIN") or "plugin"

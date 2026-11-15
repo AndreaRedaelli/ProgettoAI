@@ -116,7 +116,26 @@ L'assistente può leggere e scrivere file solo nella cartella `area_lavoro/`,
 creata al primo avvio. Prima di scrivere, eliminare o eseguire uno script
 mostra cosa sta per fare e chiede `Confermi? [s/N]`: solo `s` vale come sì.
 
-## 6. Se qualcosa non va
+## 6. Il loop autonomo
+
+Oltre alla chat, l'assistente può lavorare da solo a un obiettivo:
+
+```powershell
+.venv\Scripts\python.exe -m assistente loop "Leggi i file dell'area di lavoro e riassumili"
+```
+
+Lavora per iterazioni, mostrando gli strumenti che usa, e si ferma quando ha
+finito o quando raggiunge un tetto di iterazioni, richieste o tempo. In
+questa modalità può solo leggere: non scrive, non elimina e non esegue script.
+Il risultato finisce in `area_lavoro/risultato_loop.md`.
+
+Per riprendere un lavoro interrotto o fermato per budget esaurito:
+
+```powershell
+.venv\Scripts\python.exe -m assistente loop --riprendi
+```
+
+## 7. Se qualcosa non va
 
 | Messaggio | Causa | Rimedio |
 |---|---|---|

@@ -16,7 +16,7 @@ la propria sezione qui sotto.
 | `tappa-2-sicurezza` | Controlli sulle richieste e filtro di ambito | presente |
 | `tappa-3-agente` | Strumenti e ciclo agentico | presente |
 | `tappa-4-plugin` | Plugin e MCP | presente |
-| `tappa-5-loop` | Loop autonomo | da fare |
+| `tappa-5-loop` | Loop autonomo | presente |
 | `tappa-6-interfaccia` | Interfaccia grafica | da fare |
 
 I branch sono **a catena**: ognuno parte dal precedente. Per vedere che cosa
@@ -745,7 +745,181 @@ comodità.
 
 ## Tappa 5 — Loop
 
-Branch `tappa-5-loop`. *Da fare.*
+Branch `tappa-5-loop`.
+
+### Cosa aggiunge rispetto alla tappa 4
+
+- `assistente/loop.py`: il loop autonomo e il suo stato su disco.
+- `assistente/__main__.py`: un secondo modo di avviare il programma.
+- `Sessione` conta le richieste e può saltare i controlli sulla domanda.
+- `ErroreAI.riprovabile`: distingue "aspetta e riprova" dagli altri errori.
+
+```powershell
+.venv\Scripts\python.exe -m assistente loop "Leggi i file dell'area di lavoro e riassumili"
+```
+
+```powershell
+.venv\Scripts\python.exe -m assistente loop --riprendi
+```
+
+### Ciclo agentico e loop autonomo non sono la stessa cosa
+
+| | Ciclo agentico (tappa 3) | Loop autonomo (tappa 5) |
+|---|---|---|
+| Dura | una domanda | un obiettivo intero |
+| Chi scrive la domanda successiva | l'utente | il nostro programma |
+| L'utente | è presente a ogni turno | non c'è |
+| Si ferma quando | il modello smette di chiedere strumenti | scatta un criterio di arresto |
+| Memoria | la cronologia | le note salvate su disco |
+
+Il loop **contiene** il ciclo agentico: ogni iterazione è una `Sessione` che
+può usare gli strumenti per più giri.
+
+### Un'iterazione
+
+```
+finché non c'è motivo di fermarsi:
+    crea una sessione NUOVA
+    chiedi: obiettivo + note delle iterazioni precedenti → "fai un passo"
+    l'agente lavora con gli strumenti e risponde con un JSON:
+        {"stato": "continua" | "completato", "nota": "...", "risultato": "..."}
+    aggiungi la nota alla memoria
+    se dice "completato" → fai verificare il risultato
+    salva lo stato su disco
+```
+
+### Gestione del contesto: sessione nuova, memoria nelle note
+
+In una chat la cronologia cresce a ogni turno. In un loop lungo questo
+diventa un problema: costo crescente, limite della finestra del modello, e
+il modello che si perde nei dettagli vecchi.
+
+La scelta fatta qui è radicale e semplice: **ogni iterazione parte da zero**.
+Ciò che deve sopravvivere lo scrive l'agente stesso nella `nota`, e noi la
+rimettiamo nel prompt dell'iterazione successiva. Il contesto ha così una
+dimensione prevedibile. Il prezzo: ciò che l'agente non annota è perso, e
+deve rifarlo.
+
+### Quando fermarsi
+
+Un loop senza freni è un modo di spendere soldi all'infinito. I criteri sono
+quattro, indipendenti, e vengono controllati **prima** di ogni iterazione:
+
+| Criterio | Impostazione | Protegge da |
+|---|---|---|
+| Iterazioni | `LOOP_MAX_ITERAZIONI` (6) | lavori che non convergono |
+| Richieste all'AI | `LOOP_MAX_RICHIESTE` (30) | costo e limiti del piano gratuito |
+| Tempo | `LOOP_MAX_SECONDI` (300) | blocchi e attese |
+| Nessun progresso | due iterazioni di fila | agente che gira a vuoto |
+
+"Nessun progresso" significa: nota identica alla precedente, risposta che non
+rispetta il formato, oppure errore dell'API.
+
+Il budget di richieste è controllato tra un'iterazione e l'altra, quindi può
+essere superato di una iterazione (fino a `MAX_PASSI_AGENTE` richieste).
+
+### Chi decide che il lavoro è fatto bene?
+
+Non l'agente. Quando dichiara `completato`, il risultato va a un **revisore**:
+una chiamata separata, con istruzioni diverse, che riceve solo obiettivo e
+risultato e risponde `{"approvato": true/false, "motivo": "..."}`. Se respinge,
+il motivo diventa una nota e il loop prosegue.
+
+Come nel filtro di ambito vale la regola *fail closed*: senza un sì
+esplicito, il risultato non è approvato.
+
+Limite onesto: il revisore è lo stesso modello che ha fatto il lavoro, quindi
+condivide i suoi punti ciechi. In un sistema serio la verifica è qualcosa di
+indipendente: un altro modello, dei test automatici, un controllo scritto in
+codice, o una persona.
+
+### Niente conferme, quindi niente azioni rischiose
+
+Nel loop non c'è nessuno a cui chiedere "confermi?". Gli strumenti con
+permesso `conferma` non vengono nemmeno offerti all'agente: può leggere,
+cercare e calcolare, non scrivere, eliminare o eseguire codice.
+
+Il risultato finale viene scritto in `area_lavoro/risultato_loop.md` dal
+**nostro codice**, non da uno strumento dell'agente: è un'azione che abbiamo
+deciso noi, con un percorso fisso.
+
+### I controlli della tappa 2 nel loop
+
+- L'obiettivo passa dalla guardia una volta, all'inizio. Fuori ambito: il
+  loop non parte.
+- I prompt delle iterazioni li scriviamo noi, quindi non ripassano dal filtro
+  di ambito (`gia_verificata=True`): giudicare ogni iterazione
+  raddoppierebbe le richieste.
+- I risultati degli strumenti passano comunque da `filtra_risultato`.
+
+### Stato su disco e ripresa
+
+Dopo ogni iterazione `StatoLoop` viene salvato in `stato/loop.json`:
+obiettivo, numero di iterazione, richieste usate, note, esito. Con
+`--riprendi` il loop ricarica lo stato e prosegue con un budget nuovo. Vale
+sia dopo un `Ctrl+C` sia dopo un arresto per budget esaurito.
+
+### Errori del fornitore
+
+- **Troppe richieste** (`ErroreAI.riprovabile`): il loop aspetta 30 secondi e
+  riprova, fino a tre volte. Con un piano gratuito capita spesso.
+- **Altri errori**: l'iterazione è persa ma il loop continua, e conta come
+  iterazione senza progressi.
+
+### Impostazioni aggiunte
+
+| Variabile | Significato | Predefinito |
+|---|---|---|
+| `LOOP_MAX_ITERAZIONI` | Iterazioni per esecuzione | 6 |
+| `LOOP_MAX_RICHIESTE` | Richieste all'AI per esecuzione | 30 |
+| `LOOP_MAX_SECONDI` | Durata massima | 300 |
+| `FILE_STATO_LOOP` | Dove salvare lo stato | `stato/loop.json` |
+
+### Esecuzioni pianificate
+
+Il loop è un comando: per lanciarlo a orari fissi basta l'Utilità di
+pianificazione di Windows, con il comando di avvio e la cartella del progetto
+come cartella di lavoro. Non serve altro codice.
+
+### Ordine di lettura consigliato
+
+1. `loop.py`, metodo `esegui` — i criteri di arresto e il salvataggio.
+2. `loop.py`, `_iterazione` e il testo `ISTRUZIONI`.
+3. `loop.py`, `_concludi` e il testo `VERIFICATORE`.
+4. `tests/test_loop.py` — ogni criterio di arresto ha il suo test.
+
+### Esperimenti
+
+- Lancia un obiettivo e interrompilo con `Ctrl+C` a metà, poi apri
+  `stato/loop.json` e riprendi con `--riprendi`.
+- Imposta `LOOP_MAX_ITERAZIONI=1` e dai un obiettivo che richiede più passi.
+- Dai un obiettivo impossibile ("riassumi il file che_non_esiste.txt"): quale
+  criterio lo ferma?
+- In `_concludi` sostituisci la verifica con un'approvazione automatica:
+  quanti test falliscono?
+
+### Stato della verifica
+
+Provato con il modello vero di Groq: obiettivo "riepilogo di una riga per
+ogni file più il totale dei prezzi", su tre file. Completato in 2 iterazioni
+e 11 richieste, con risultato corretto e approvato dal revisore.
+
+Nella prima iterazione il modello ha letto tutti i file e poi, invece di
+rispondere con il JSON, ha provato a chiamare uno strumento inesistente di
+nome `JSON`: l'API ha rifiutato la richiesta. Il loop non si è fermato e la
+seconda iterazione ha rifatto il lavoro. È un esempio reale di due cose:
+perché un loop deve reggere gli errori, e quanto costa non avere una nota
+dell'iterazione fallita.
+
+Anthropic è coperto solo dai test con il fornitore finto.
+
+### Limiti noti
+
+- Se un'iterazione fallisce, il lavoro fatto in quell'iterazione è perso.
+- Il revisore è lo stesso modello dell'agente.
+- Senza strumenti di scrittura il loop produce analisi e riepiloghi, non
+  modifiche ai file.
+- Vengono riportate nel prompt solo le ultime 10 note.
 
 ## Tappa 6 — Interfaccia grafica
 

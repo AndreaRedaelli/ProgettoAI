@@ -13,6 +13,9 @@ from .. import config
 class ErroreAI(Exception):
     """Errore di un fornitore, già tradotto in un messaggio per l'utente."""
 
+    # True se ha senso aspettare e riprovare (per esempio: troppe richieste).
+    riprovabile = False
+
 
 @dataclass
 class ChiamataStrumento:
@@ -57,7 +60,9 @@ def traduci_errore(sdk, errore: Exception, nome_chiave: str) -> ErroreAI:
     if isinstance(errore, sdk.AuthenticationError):
         return ErroreAI(f"Chiave API non valida: controlla {nome_chiave} nel file .env.")
     if isinstance(errore, sdk.RateLimitError):
-        return ErroreAI("Limite di richieste raggiunto: aspetta un po' e riprova.")
+        tradotto = ErroreAI("Limite di richieste raggiunto: aspetta un po' e riprova.")
+        tradotto.riprovabile = True
+        return tradotto
     if isinstance(errore, sdk.APIStatusError):
         return ErroreAI(f"Errore dell'API ({errore.status_code}): {errore.message}")
     if isinstance(errore, sdk.APIConnectionError):

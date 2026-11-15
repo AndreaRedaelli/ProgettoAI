@@ -24,6 +24,8 @@ class Sessione:
         # Gli stessi scambi come semplice testo (domanda, risposta): servono
         # al filtro di ambito per capire le domande di seguito.
         self.scambi: list[tuple[str, str]] = []
+        # Quante volte abbiamo interpellato l'AI: con un piano gratuito è il vero budget.
+        self.richieste = 0
         self.token_ingresso = 0
         self.token_uscita = 0
         self.spesa = 0.0
@@ -31,17 +33,20 @@ class Sessione:
         self.dati_mascherati: list[str] = []
         self.avvisi: list[str] = []
 
-    def invia(self, domanda: str, su_testo, su_strumento=None) -> Risposta:
+    def invia(self, domanda: str, su_testo, su_strumento=None, gia_verificata: bool = False) -> Risposta:
         """Manda la domanda con tutta la cronologia e registra la risposta.
 
         `su_testo` viene chiamata a ogni frammento di testo in arrivo.
         `su_strumento(chiamata, risultato)` dopo ogni strumento eseguito.
         Solleva RichiestaBloccata se i controlli fermano la domanda.
         Se qualcosa fallisce, la cronologia torna com'era prima della domanda.
+        `gia_verificata` salta i controlli sulla domanda: lo usa il loop
+        autonomo, che la domanda la scrive da sé. I risultati degli strumenti
+        vengono controllati comunque.
         """
         self.dati_mascherati, self.avvisi = [], []
 
-        if self.guardia:
+        if self.guardia and not gia_verificata:
             verdetto = self.guardia.verifica(domanda, self.scambi[-2:])
             if verdetto.giudice:
                 # Anche la chiamata al modello giudice consuma token.
@@ -121,6 +126,7 @@ class Sessione:
         return risultato
 
     def _conta(self, risposta: Risposta) -> None:
+        self.richieste += 1
         self.token_ingresso += risposta.token_ingresso
         self.token_uscita += risposta.token_uscita
         self.spesa += costo_in_dollari(
@@ -134,6 +140,7 @@ class Sessione:
 
     def riepilogo(self) -> str:
         return (
-            f"Token in ingresso: {self.token_ingresso} · in uscita: {self.token_uscita} · "
+            f"Richieste: {self.richieste} · "
+            f"token in ingresso: {self.token_ingresso} · in uscita: {self.token_uscita} · "
             f"spesa stimata: ${self.spesa:.4f}"
         )
